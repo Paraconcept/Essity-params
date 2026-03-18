@@ -1,4 +1,4 @@
-const CACHE_NAME = 'essity-params-v1';
+const CACHE_NAME = 'essity-params-v2';
 const ASSETS = [
   './',
   './index.html',
