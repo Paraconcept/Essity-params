@@ -436,6 +436,6 @@
 
   // Register SW
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./js/sw.js');
+    navigator.serviceWorker.register('./sw.js');
   }
 })();
