@@ -1,7 +1,7 @@
 // db.js — IndexedDB layer for ESSITY Params
 
 const DB_NAME = 'essity-params';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let db = null;
 
@@ -13,17 +13,27 @@ function openDB() {
 
     request.onupgradeneeded = (e) => {
       const database = e.target.result;
+      const oldVersion = e.oldVersion;
 
-      if (!database.objectStoreNames.contains('products')) {
+      if (oldVersion < 1) {
+        // Fresh install : créer toutes les tables
         const productStore = database.createObjectStore('products', { keyPath: 'id', autoIncrement: true });
         productStore.createIndex('code', 'code', { unique: false });
         productStore.createIndex('updatedAt', 'updatedAt', { unique: false });
-      }
+        productStore.createIndex('folderId', 'folderId', { unique: false });
 
-      if (!database.objectStoreNames.contains('entries')) {
         const entryStore = database.createObjectStore('entries', { keyPath: 'id', autoIncrement: true });
         entryStore.createIndex('productId', 'productId', { unique: false });
         entryStore.createIndex('createdAt', 'createdAt', { unique: false });
+
+        database.createObjectStore('folders', { keyPath: 'id', autoIncrement: true });
+      }
+
+      if (oldVersion === 1) {
+        // Migration v1 → v2 : ajouter la table folders et l'index folderId sur products
+        database.createObjectStore('folders', { keyPath: 'id', autoIncrement: true });
+        const productStore = e.target.transaction.objectStore('products');
+        productStore.createIndex('folderId', 'folderId', { unique: false });
       }
     };
 
@@ -36,6 +46,57 @@ function openDB() {
   });
 }
 
+// --- Folders ---
+
+async function getAllFolders() {
+  const database = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = database.transaction('folders', 'readonly');
+    const request = tx.objectStore('folders').getAll();
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function getFolder(id) {
+  const database = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = database.transaction('folders', 'readonly');
+    const request = tx.objectStore('folders').get(id);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function saveFolder(folder) {
+  const database = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = database.transaction('folders', 'readwrite');
+    const now = Date.now();
+    if (!folder.id) {
+      folder.createdAt = now;
+    }
+    folder.updatedAt = now;
+    const request = tx.objectStore('folders').put(folder);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function deleteFolder(id) {
+  const products = await getProductsByFolder(id);
+  for (const p of products) {
+    await deleteProduct(p.id);
+  }
+  const database = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = database.transaction('folders', 'readwrite');
+    tx.objectStore('folders').delete(id);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
 // --- Products ---
 
 async function getAllProducts() {
@@ -44,6 +105,17 @@ async function getAllProducts() {
     const tx = database.transaction('products', 'readonly');
     const store = tx.objectStore('products');
     const request = store.getAll();
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function getProductsByFolder(folderId) {
+  const database = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = database.transaction('products', 'readonly');
+    const index = tx.objectStore('products').index('folderId');
+    const request = index.getAll(folderId);
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
@@ -82,7 +154,6 @@ async function saveProduct(product) {
 
 async function deleteProduct(id) {
   const database = await openDB();
-  // Delete all entries for this product first
   const entries = await getEntriesByProduct(id);
   const tx = database.transaction(['products', 'entries'], 'readwrite');
 
