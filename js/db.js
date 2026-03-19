@@ -226,3 +226,93 @@ async function countEntriesByProduct(productId) {
   const notes = entries.filter(e => e.type === 'note').length;
   return { photos, notes };
 }
+
+// --- Export / Import ---
+
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+}
+
+function base64ToBlob(dataUrl) {
+  const [header, data] = dataUrl.split(',');
+  const mime = header.match(/:(.*?);/)[1];
+  const binary = atob(data);
+  const array = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    array[i] = binary.charCodeAt(i);
+  }
+  return new Blob([array], { type: mime });
+}
+
+async function exportAllData() {
+  const database = await openDB();
+  const folders = await getAllFolders();
+  const products = await getAllProducts();
+
+  const entries = await new Promise((resolve, reject) => {
+    const tx = database.transaction('entries', 'readonly');
+    const request = tx.objectStore('entries').getAll();
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+
+  const serializedEntries = await Promise.all(entries.map(async (entry) => {
+    if (entry.type === 'photo' && entry.content instanceof Blob) {
+      return { ...entry, content: await blobToBase64(entry.content), _isBase64: true };
+    }
+    return entry;
+  }));
+
+  return { version: 1, exportedAt: Date.now(), folders, products, entries: serializedEntries };
+}
+
+async function clearAllData() {
+  const database = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = database.transaction(['folders', 'products', 'entries'], 'readwrite');
+    tx.objectStore('folders').clear();
+    tx.objectStore('products').clear();
+    tx.objectStore('entries').clear();
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function importAllData(data) {
+  await clearAllData();
+
+  const folderIdMap = {};
+  const productIdMap = {};
+
+  for (const folder of (data.folders || [])) {
+    const oldId = folder.id;
+    const f = { name: folder.name };
+    const newId = await saveFolder(f);
+    folderIdMap[oldId] = newId;
+  }
+
+  for (const product of (data.products || [])) {
+    const oldId = product.id;
+    const p = { ...product };
+    delete p.id;
+    if (p.folderId != null) p.folderId = folderIdMap[p.folderId];
+    const newId = await saveProduct(p);
+    productIdMap[oldId] = newId;
+  }
+
+  for (const entry of (data.entries || [])) {
+    const e = { ...entry };
+    delete e.id;
+    e.productId = productIdMap[e.productId];
+    if (e._isBase64) {
+      e.content = base64ToBlob(e.content);
+      delete e._isBase64;
+    }
+    await saveEntry(e);
+  }
+}

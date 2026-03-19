@@ -63,19 +63,29 @@ html, body {
   color: var(--primary);
 }
 
-#theme-toggle {
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.header-actions button {
   background: none;
   border: none;
   color: #fff;
-  font-size: 1.5rem;
+  font-size: 1.3rem;
   cursor: pointer;
-  padding: 4px 8px;
+  padding: 4px 7px;
   border-radius: 8px;
   transition: background 0.2s;
 }
 
-#theme-toggle:hover {
+.header-actions button:hover {
   background: rgba(255,255,255,0.15);
+}
+
+#theme-toggle {
+  font-size: 1.5rem;
 }
 
 /* --- App container --- */

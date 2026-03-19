@@ -15,7 +15,12 @@
 <body>
   <header class="app-header">
     <h1><span class="logo-accent">ESSITY</span> <span class="logo-text">Params</span></h1>
-    <button id="theme-toggle" aria-label="Changer le theme">&#9790;</button>
+    <div class="header-actions">
+      <button id="btn-export" aria-label="Exporter les données" title="Exporter">&#128228;</button>
+      <button id="btn-import-trigger" aria-label="Importer les données" title="Importer">&#128229;</button>
+      <button id="theme-toggle" aria-label="Changer le theme">&#9790;</button>
+    </div>
+    <input type="file" id="file-import" accept=".json" style="display:none">
   </header>
   <main id="app"></main>
   <script src="js/db.js"></script>

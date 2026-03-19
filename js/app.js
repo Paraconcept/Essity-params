@@ -617,6 +617,49 @@
   window.addEventListener('load', async () => {
     initTheme();
     $('#theme-toggle').addEventListener('click', toggleTheme);
+
+    $('#btn-export').addEventListener('click', async () => {
+      try {
+        const data = await exportAllData();
+        const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `essity-params-${new Date().toISOString().slice(0, 10)}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        alert('Erreur lors de l\'export : ' + err.message);
+      }
+    });
+
+    $('#btn-import-trigger').addEventListener('click', () => {
+      $('#file-import').click();
+    });
+
+    $('#file-import').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      if (!confirm('L\'import écrasera toutes les données existantes. Continuer ?')) {
+        e.target.value = '';
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = async (ev) => {
+        try {
+          const data = JSON.parse(ev.target.result);
+          await importAllData(data);
+          location.hash = '#/';
+          await router();
+          alert('Import réussi !');
+        } catch (err) {
+          alert('Erreur lors de l\'import : ' + err.message);
+        }
+      };
+      reader.readAsText(file);
+      e.target.value = '';
+    });
+
     await migrateOrphanedProducts();
     router();
   });
