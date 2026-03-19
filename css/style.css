@@ -503,6 +503,21 @@ html, body {
   color: var(--text-muted);
 }
 
+.note-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.note-footer .btn-edit-note {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+
 .note-footer .btn-remove {
   background: none;
   border: none;

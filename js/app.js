@@ -348,7 +348,10 @@
                 <p>${esc(n.content)}</p>
                 <div class="note-footer">
                   <span class="note-date">${formatDate(n.createdAt)}</span>
-                  <button class="btn-remove" data-entry-id="${n.id}">&times;</button>
+                  <div class="note-actions">
+                    <button class="btn-edit-note" data-entry-id="${n.id}" title="Modifier">&#9998;</button>
+                    <button class="btn-remove" data-entry-id="${n.id}">&times;</button>
+                  </div>
                 </div>
               </div>
             `).join('')}
@@ -382,6 +385,14 @@
       img.addEventListener('click', (e) => {
         const entryId = e.target.closest('.photo-thumb').dataset.id;
         location.hash = `#/folder/${folderId}/product/${id}/photo/${entryId}`;
+      });
+    });
+
+    $$('.btn-edit-note').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const entryId = parseInt(btn.dataset.entryId);
+        await showEditNoteDialog(entryId, id, folderId);
       });
     });
 
@@ -475,6 +486,41 @@
           content: text,
           caption: ''
         });
+        const product = await getProduct(productId);
+        product.updatedAt = Date.now();
+        await saveProduct(product);
+      }
+      overlay.remove();
+      await renderProductDetail(productId, folderId);
+    });
+
+    $('#note-text').focus();
+  }
+
+  async function showEditNoteDialog(entryId, productId, folderId) {
+    const entry = await getEntry(entryId);
+    if (!entry) return;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+      <div class="modal">
+        <h3>Modifier la note</h3>
+        <textarea id="note-text" rows="5">${esc(entry.content)}</textarea>
+        <div class="form-actions">
+          <button class="btn btn-secondary" id="modal-cancel">Annuler</button>
+          <button class="btn btn-primary" id="modal-save">Sauver</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    $('#modal-cancel').addEventListener('click', () => overlay.remove());
+    $('#modal-save').addEventListener('click', async () => {
+      const text = $('#note-text').value.trim();
+      if (text) {
+        entry.content = text;
+        await saveEntry(entry);
         const product = await getProduct(productId);
         product.updatedAt = Date.now();
         await saveProduct(product);
