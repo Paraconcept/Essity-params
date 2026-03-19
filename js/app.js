@@ -166,7 +166,12 @@
     if (!folder) return location.hash = '#/';
 
     const products = await getProductsByFolder(folderId);
-    products.sort((a, b) => b.updatedAt - a.updatedAt);
+    products.sort((a, b) => {
+      if (a.position !== undefined && b.position !== undefined) return a.position - b.position;
+      if (a.position !== undefined) return -1;
+      if (b.position !== undefined) return 1;
+      return b.updatedAt - a.updatedAt;
+    });
 
     const counts = {};
     for (const p of products) {
@@ -193,6 +198,7 @@
           ${products.map(p => `
             <div class="product-card" data-id="${p.id}" data-name="${p.name.toLowerCase()}" data-code="${p.code.toLowerCase()}">
               <div class="product-card-main">
+                <span class="drag-handle">&#8942;&#8942;</span>
                 <div class="product-info">
                   <span class="product-name">${esc(p.name)}</span>
                   <span class="product-code">${esc(p.code)}</span>
@@ -240,6 +246,22 @@
       card.addEventListener('click', () => {
         location.hash = `#/folder/${folderId}/product/${card.dataset.id}`;
       });
+    });
+
+    new Sortable(document.getElementById('product-list'), {
+      animation: 150,
+      handle: '.drag-handle',
+      ghostClass: 'sortable-ghost',
+      onEnd: async () => {
+        const cards = $$('.product-card', document.getElementById('product-list'));
+        for (let i = 0; i < cards.length; i++) {
+          const product = await getProduct(parseInt(cards[i].dataset.id));
+          if (product) {
+            product.position = i;
+            await saveProduct(product);
+          }
+        }
+      }
     });
   }
 

@@ -162,6 +162,29 @@ html, body {
   flex-shrink: 0;
 }
 
+/* --- Drag handle --- */
+.drag-handle {
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  padding-right: 4px;
+  cursor: grab;
+  flex-shrink: 0;
+  letter-spacing: -3px;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.sortable-ghost {
+  opacity: 0.35;
+  background: var(--surface-2);
+  border-radius: var(--radius);
+}
+
 /* --- Product Cards --- */
 .product-list {
   display: flex;
